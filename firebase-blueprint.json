@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A boutique fashion item in inventory",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "category": { "type": "string" },
+        "size": { "type": "array", "items": { "type": "string" } },
+        "color": { "type": "array", "items": { "type": "string" } },
+        "quantity": { "type": "number" },
+        "minStock": { "type": "number" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "purchaseDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sku", "name", "brand", "category", "size", "color", "quantity", "minStock", "price", "cost", "images", "createdAt"]
+    },
+    "Movement": {
+      "title": "Movement",
+      "description": "Stock entry or exit record",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Entrada", "Saída"] },
+        "quantity": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "type", "quantity", "date"]
+    }
+  },
+  "firestore": {
+    "/inventory/{productId}": {
+      "schema": "Product",
+      "description": "Collection of boutique products"
+    },
+    "/movements/{movementId}": {
+      "schema": "Movement",
+      "description": "Collection of stock movements"
+    }
+  }
+}

@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (request.auth.token.email == "chpsilva.semus@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidProduct(data) {
+      let allowedFields = ['id', 'sku', 'name', 'brand', 'category', 'size', 'color', 'quantity', 'minStock', 'price', 'cost', 'images', 'createdAt', 'purchaseDate', 'description'];
+      return data.keys().hasOnly(allowedFields) &&
+             data.sku is string && data.sku.size() > 0 &&
+             data.name is string && data.name.size() > 0 &&
+             data.brand is string && data.brand.size() > 0 &&
+             data.category is string &&
+             (data.size is string || data.size is list) &&
+             (data.color is string || data.color is list) &&
+             data.quantity is number &&
+             data.minStock is number &&
+             data.price is number &&
+             data.cost is number &&
+             data.images is list &&
+             data.createdAt is string &&
+             (!('purchaseDate' in data) || data.purchaseDate is string) &&
+             (!('description' in data) || data.description is string);
+    }
+
+    function isValidMovement(data) {
+      let allowedFields = ['id', 'productId', 'type', 'quantity', 'date'];
+      return data.keys().hasOnly(allowedFields) &&
+             data.productId is string &&
+             data.type in ['Entrada', 'Saída'] &&
+             data.quantity is number &&
+             data.date is string;
+    }
+
+    function isValidSetting(data) {
+      let allowedFields = ['id', 'name'];
+      return data.keys().hasOnly(allowedFields) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100;
+    }
+
+    // Rules
+    match /inventory/{productId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidProduct(request.resource.data);
+      allow update: if isAuthenticated() && (isValidProduct(request.resource.data) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /movements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidMovement(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSetting(request.resource.data);
+    }
+
+    match /sizes/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSetting(request.resource.data);
+    }
+
+    match /colors/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSetting(request.resource.data);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAdmin();
+    }
+  }
+}

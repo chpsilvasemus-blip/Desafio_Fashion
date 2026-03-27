@@ -1,0 +1,7 @@
+{
+  "name": "Desafio Fashion - Controle de Estoque",
+  "description": "Sistema minimalista e elegante para gestão de inventário de boutiques de moda feminina.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
