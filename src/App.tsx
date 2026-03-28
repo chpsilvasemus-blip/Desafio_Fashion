@@ -120,6 +120,46 @@ import {
 } from 'firebase/storage';
 
 // --- Error Handling ---
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      let errorMessage = "Ocorreu um erro inesperado.";
+      try {
+        const errInfo = JSON.parse(this.state.error.message);
+        errorMessage = `Erro no banco de dados (${errInfo.operationType}): ${errInfo.error}`;
+      } catch (e) {
+        errorMessage = this.state.error.message || errorMessage;
+      }
+
+      return (
+        <div className="h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
+          <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+          <h1 className="text-2xl font-serif font-bold mb-2">Ops! Algo deu errado.</h1>
+          <p className="text-muted-foreground mb-6 max-w-md">{errorMessage}</p>
+          <Button onClick={() => window.location.reload()} className="rounded-xl">
+            Tentar Novamente
+          </Button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -154,11 +194,12 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Components ---
 
-const Dashboard = ({ products, movements, categories }: { products: Product[], movements: Movement[], categories: Setting[] }) => {
+const Dashboard = ({ products = [], movements = [], categories = [] }: { products?: Product[], movements?: Movement[], categories?: Setting[] }) => {
+  console.log("Dashboard rendering, products:", products?.length, "movements:", movements?.length);
   const [category, setCategory] = useState('all');
 
-  const filteredProducts = products.filter(p => category === 'all' || p.category === category);
-  const filteredMovements = movements.filter(m => {
+  const filteredProducts = (products || []).filter(p => category === 'all' || p.category === category);
+  const filteredMovements = (movements || []).filter(m => {
     if (category !== 'all') {
       const product = products.find(p => p.id === m.productId);
       if (product?.category !== category) return false;
@@ -212,7 +253,7 @@ const Dashboard = ({ products, movements, categories }: { products: Product[], m
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as Categorias</SelectItem>
-            {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+            {(categories || []).map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -2173,7 +2214,21 @@ export default function App() {
 
   // Auth Listener
   useEffect(() => {
+    console.log("Auth state changed:", user);
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, 'inventory', 'connection-test'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. The client is offline.");
+          toast.error("Erro de conexão: O cliente está offline. Verifique a configuração do Firebase.");
+        }
+      }
+    };
+    testConnection();
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
+      console.log("onAuthStateChanged:", u);
       setUser(u);
       setIsAuthReady(true);
     });
@@ -2186,9 +2241,13 @@ export default function App() {
 
     const qInv = query(collection(db, 'inventory'), orderBy('createdAt', 'desc'));
     const unsubInv = onSnapshot(qInv, (snapshot) => {
+      console.log("Inventory snapshot received, docs count:", snapshot.docs.length);
       const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(p);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'inventory'));
+    }, (err) => {
+      console.error("Inventory snapshot error:", err);
+      handleFirestoreError(err, OperationType.LIST, 'inventory');
+    });
 
     const qMov = query(collection(db, 'movements'), orderBy('date', 'desc'), limit(50));
     const unsubMov = onSnapshot(qMov, (snapshot) => {
@@ -2545,7 +2604,12 @@ export default function App() {
             exit={{ opacity: 0, x: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'dashboard' && <Dashboard products={products} movements={movements} categories={categories} />}
+            {activeTab === 'dashboard' && (
+              (() => {
+                console.log("Rendering Dashboard");
+                return <Dashboard products={products} movements={movements} categories={categories} />;
+              })()
+            )}
             {activeTab === 'movements' && <MovementsView products={products} onImageClick={(urls, name, currentIndex) => setSelectedImage({ urls, name, currentIndex })} categories={categories} />}
             {activeTab === 'inventory' && <Inventory products={products} onImageClick={(urls, name, currentIndex) => setSelectedImage({ urls, name, currentIndex })} categories={categories} sizes={sizes} colors={colors} />}
             {activeTab === 'reports' && <ProductReport products={products} movements={movements} />}
