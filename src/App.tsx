@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { Component, useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Package, 
@@ -120,46 +121,6 @@ import {
 } from 'firebase/storage';
 
 // --- Error Handling ---
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: any, errorInfo: any) {
-    console.error("ErrorBoundary caught an error", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      let errorMessage = "Ocorreu um erro inesperado.";
-      try {
-        const errInfo = JSON.parse(this.state.error.message);
-        errorMessage = `Erro no banco de dados (${errInfo.operationType}): ${errInfo.error}`;
-      } catch (e) {
-        errorMessage = this.state.error.message || errorMessage;
-      }
-
-      return (
-        <div className="h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
-          <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-          <h1 className="text-2xl font-serif font-bold mb-2">Ops! Algo deu errado.</h1>
-          <p className="text-muted-foreground mb-6 max-w-md">{errorMessage}</p>
-          <Button onClick={() => window.location.reload()} className="rounded-xl">
-            Tentar Novamente
-          </Button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -2237,8 +2198,6 @@ export default function App() {
 
   // Data Listeners
   useEffect(() => {
-    if (!user) return;
-
     const qInv = query(collection(db, 'inventory'), orderBy('createdAt', 'desc'));
     const unsubInv = onSnapshot(qInv, (snapshot) => {
       console.log("Inventory snapshot received, docs count:", snapshot.docs.length);
@@ -2259,7 +2218,7 @@ export default function App() {
       unsubInv();
       unsubMov();
     };
-  }, [user]);
+  }, []);
 
   const handleLogin = async () => {
     try {
@@ -2278,28 +2237,6 @@ export default function App() {
 
   if (!isAuthReady) {
     return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
-  }
-
-  if (!user) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
-        <img 
-          src={LOGO_URL} 
-          alt="Desafio Fashion Logo" 
-          className="w-80 h-80 object-contain mb-4"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-            e.currentTarget.nextElementSibling?.classList.remove('hidden');
-          }}
-        />
-        <div className="w-32 h-32 bg-primary rounded-full flex items-center justify-center text-white font-serif font-bold text-4xl shadow-2xl shadow-primary/30 mb-8 hidden">DF</div>
-        <p className="text-muted-foreground max-w-xs mb-10">Acesse seu painel exclusivo de controle de estoque e tendências.</p>
-        <Button onClick={handleLogin} className="rounded-2xl bg-primary text-white hover:bg-primary/90 h-14 px-8 text-lg font-serif flex gap-3 shadow-lg shadow-primary/20">
-          <LogIn className="w-5 h-5" />
-          Entrar com Google
-        </Button>
-      </div>
-    );
   }
 
   const navItems = [
@@ -2373,13 +2310,24 @@ export default function App() {
         
         <div className="mt-auto p-8 space-y-4">
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-muted/30">
-            <img src={user.photoURL || ''} className="w-8 h-8 rounded-full border border-primary/20" alt="User" />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold truncate">{user.displayName}</div>
-              <button onClick={handleLogout} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
-                <LogOut className="w-3 h-3" /> Sair
-              </button>
-            </div>
+            {user ? (
+              <>
+                <img src={user.photoURL || ''} className="w-8 h-8 rounded-full border border-primary/20" alt="User" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold truncate">{user.displayName}</div>
+                  <button onClick={handleLogout} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
+                    <LogOut className="w-3 h-3" /> Sair
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold">Visitante</div>
+                <button onClick={handleLogin} className="text-[10px] text-primary hover:underline flex items-center gap-1">
+                  <LogIn className="w-3 h-3" /> Entrar
+                </button>
+              </div>
+            )}
           </div>
           <div className="p-4 rounded-2xl bg-accent/50 border border-accent">
             <div className="text-xs font-medium text-primary uppercase tracking-wider mb-1">Suporte</div>

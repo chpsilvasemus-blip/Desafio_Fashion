@@ -50,30 +50,30 @@ service cloud.firestore {
 
     // Rules
     match /inventory/{productId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && isValidProduct(request.resource.data);
       allow update: if isAuthenticated() && (isValidProduct(request.resource.data) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /movements/{movementId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && isValidMovement(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /categories/{id} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAuthenticated() && isValidSetting(request.resource.data);
     }
 
     match /sizes/{id} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAuthenticated() && isValidSetting(request.resource.data);
     }
 
     match /colors/{id} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAuthenticated() && isValidSetting(request.resource.data);
     }
 
